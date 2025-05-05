@@ -4,7 +4,7 @@ import traceback
 import platform
 import sys
 from trader import GridTrader
-from helpers import LogConfig, send_pushplus_message
+from helpers import LogConfig, send_telegram_message
 from web_server import start_web_server
 from exchange_client import ExchangeClient
 from config import TradingConfig
@@ -47,7 +47,11 @@ async def main():
     except Exception as e:
         error_msg = f"启动失败: {str(e)}\n{traceback.format_exc()}"
         logging.error(error_msg)
-        send_pushplus_message(error_msg, "致命错误")
+        # Use Telegram for fatal error notification
+        try:
+            await send_telegram_message(error_msg, "致命错误 - GridBNB-USDT")
+        except Exception as notify_e:
+            logging.error(f"发送致命错误Telegram通知失败: {notify_e}")
         
     finally:
         if 'trader' in locals():

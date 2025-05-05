@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 import time
 import math
-from helpers import send_pushplus_message, format_trade_message
+from helpers import format_trade_message, send_telegram_message
 import json
 from monitor import TradingMonitor
 from position_controller_s1 import PositionControllerS1
@@ -99,12 +99,14 @@ class GridTrader:
             
             # 发送启动通知
             threshold = FLIP_THRESHOLD(self.grid_size)  # 计算实际阈值
-            send_pushplus_message(
+            # Use Telegram
+            await send_telegram_message(
                 f"网格交易启动成功\n"
                 f"交易对: {self.config.SYMBOL}\n"
                 f"基准价: {self.base_price} USDT\n"
                 f"网格大小: {self.grid_size}%\n"
-                f"触发阈值: {threshold*100}% (网格大小的1/5)"
+                f"触发阈值: {threshold*100:.4f}% (网格大小的1/5)",
+                "系统启动 - GridBNB-USDT"
             )
             
             # 添加市场价对比
@@ -151,11 +153,11 @@ class GridTrader:
         except Exception as e:
             self.initialized = False
             self.logger.error(f"初始化失败: {str(e)}")
-            # 发送错误通知
-            send_pushplus_message(
+            # 发送错误通知 - Use Telegram
+            await send_telegram_message(
                 f"网格交易启动失败\n"
                 f"错误信息: {str(e)}",
-                "错误通知"
+                "错误通知 - GridBNB-USDT"
             )
             raise
     
@@ -436,11 +438,11 @@ class GridTrader:
             open_orders = await self.exchange.fetch_open_orders(self.config.SYMBOL)
             for order in open_orders:
                 await self.exchange.cancel_order(order['id'])
-            send_pushplus_message("程序紧急停止", "系统通知")
+            await send_telegram_message("程序紧急停止", "系统通知 - GridBNB-USDT") # Use Telegram
             self.logger.critical("所有交易已停止，进入复盘程序")
         except Exception as e:
             self.logger.error(f"紧急停止失败: {str(e)}")
-            send_pushplus_message(f"程序异常停止: {str(e)}", "错误通知")
+            await send_telegram_message(f"程序异常停止: {str(e)}", "错误通知 - GridBNB-USDT") # Use Telegram
         finally:
             await self.exchange.close()
             exit()
@@ -567,7 +569,8 @@ class GridTrader:
                         retry_count=(retry_count + 1, max_retries)
                     )
                     
-                    send_pushplus_message(message, "交易成功通知")
+                    # Use Telegram
+                    await send_telegram_message(message, "交易成功通知 - GridBNB-USDT")
                     
                     # 交易完成后，检查并转移多余资金到理财
                     await self._transfer_excess_funds()
@@ -619,7 +622,8 @@ class GridTrader:
                                 retry_count=(retry_count + 1, max_retries)
                             )
                             
-                            send_pushplus_message(message, "交易成功通知")
+                            # Use Telegram
+                            await send_telegram_message(message, "交易成功通知 - GridBNB-USDT")
                             
                             # 交易完成后，检查并转移多余资金到理财
                             await self._transfer_excess_funds()
@@ -665,7 +669,8 @@ class GridTrader:
 📊 交易对: {self.config.SYMBOL}
 ⚠️ 错误: 资金不足
 """
-                    send_pushplus_message(error_message, "交易错误通知")
+                    # Use Telegram
+                    await send_telegram_message(error_message, "交易错误通知 - GridBNB-USDT")
                     return False
                 
                 # 如果还有重试次数，稍等后继续
@@ -682,7 +687,8 @@ class GridTrader:
 📊 交易对: {self.config.SYMBOL}
 ⚠️ 错误: 达到最大重试次数 {max_retries} 次
 """
-            send_pushplus_message(error_message, "交易错误通知")
+            # Use Telegram
+            await send_telegram_message(error_message, "交易错误通知 - GridBNB-USDT")
         
         return False
 
@@ -776,7 +782,8 @@ class GridTrader:
                 total=total,
                 grid_size=self.grid_size
             )
-            send_pushplus_message(message, "交易执行通知")
+            # Use Telegram
+            await send_telegram_message(message, "交易执行通知 - GridBNB-USDT") 
         except Exception as e:
             self.logger.error(f"记录订单失败: {str(e)}")
 
@@ -828,11 +835,14 @@ class GridTrader:
                         for side, active_id in self.active_orders.items():
                             if active_id == order_id:
                                 self.active_orders[side] = None
-                        # 发送成交通知
-                        send_pushplus_message(
-                            f"BNB {{'买入' if side == 'buy' else '卖出'}}单成交\\n"
-                            f"价格: {order['price']} USDT"
+                        # 发送成交通知 - Use Telegram
+                        await send_telegram_message(
+                            f"BNB {{'买入' if side == 'buy' else '卖出'}}单成交\n"
+                            f"价格: {order['price']} USDT",
+                            "订单成交 - GridBNB-USDT"
                         )
+                        # 从时间戳中移除
+                        del self.order_timestamps[order_id]
                     elif order['status'] == 'open':
                         # 取消未成交订单
                         params = {
@@ -1514,7 +1524,8 @@ class GridTrader:
                            f"现货余额: {spot_usdt:.2f}\\n理财余额: {funding_usdt:.2f}\\n" \
                            f"缺口: {amount_usdt - (spot_usdt + funding_usdt):.2f}"
                 self.logger.error(f"买入资金不足: 现货+理财总额不足以执行交易")
-                send_pushplus_message(error_msg, "资金不足警告")
+                # Use Telegram
+                await send_telegram_message(error_msg, "资金不足警告 - GridBNB-USDT")
                 return False
                 
             # 计算需要赎回的金额（增加5%缓冲）
@@ -1544,12 +1555,14 @@ class GridTrader:
             else:
                 error_msg = f"资金赎回后仍不足\\n交易类型: 买入\\n所需USDT: {amount_usdt:.2f}\\n现货余额: {new_usdt:.2f}"
                 self.logger.error(error_msg)
-                send_pushplus_message(error_msg, "资金不足警告")
+                # Use Telegram
+                await send_telegram_message(error_msg, "资金不足警告 - GridBNB-USDT")
                 return False
                 
         except Exception as e:
             self.logger.error(f"检查买入余额失败: {str(e)}")
-            send_pushplus_message(f"余额检查错误\\n交易类型: 买入\\n错误信息: {str(e)}", "系统错误")
+            # Use Telegram
+            await send_telegram_message(f"余额检查错误\\n交易类型: 买入\\n错误信息: {str(e)}", "系统错误 - GridBNB-USDT")
             return False
             
     async def check_sell_balance(self):
@@ -1593,7 +1606,8 @@ class GridTrader:
                            f"现货余额: {spot_bnb:.8f}\\n理财余额: {funding_bnb:.8f}\\n" \
                            f"缺口: {bnb_needed - (spot_bnb + funding_bnb):.8f}"
                 self.logger.error(f"卖出资金不足: 现货+理财总额不足以执行交易")
-                send_pushplus_message(error_msg, "资金不足警告")
+                # Use Telegram
+                await send_telegram_message(error_msg, "资金不足警告 - GridBNB-USDT")
                 return False
                 
             # 计算需要赎回的金额（增加5%缓冲）
@@ -1623,12 +1637,14 @@ class GridTrader:
             else:
                 error_msg = f"资金赎回后仍不足\\n交易类型: 卖出\\n所需BNB: {bnb_needed:.8f}\\n现货余额: {new_bnb:.8f}"
                 self.logger.error(error_msg)
-                send_pushplus_message(error_msg, "资金不足警告")
+                # Use Telegram
+                await send_telegram_message(error_msg, "资金不足警告 - GridBNB-USDT")
                 return False
                 
         except Exception as e:
             self.logger.error(f"检查卖出余额失败: {str(e)}")
-            send_pushplus_message(f"余额检查错误\\n交易类型: 卖出\\n错误信息: {str(e)}", "系统错误")
+            # Use Telegram
+            await send_telegram_message(f"余额检查错误\\n交易类型: 卖出\\n错误信息: {str(e)}", "系统错误 - GridBNB-USDT")
             return False
 
     async def _execute_trade(self, side, price, amount, retry_count=None):
@@ -1656,7 +1672,8 @@ class GridTrader:
                 retry_count=retry_count
             )
             
-            send_pushplus_message(message, "交易执行通知")
+            # Use Telegram
+            await send_telegram_message(message, "交易执行通知 - GridBNB-USDT") 
             
             return order
         except Exception as e:
