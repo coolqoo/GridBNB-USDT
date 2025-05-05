@@ -746,7 +746,7 @@ class GridTrader:
                 f"新尺寸: {self.grid_size:.2f}%"
             )
 
-    def _log_order(self, order):
+    async def _log_order(self, order):
         """记录订单信息"""
         try:
             side = order['side']
