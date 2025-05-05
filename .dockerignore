@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Python virtual environment
+.venv
+venv
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+
+# IDE/Editor specific
+.idea
+.vscode
+
+# Log files
+*.log
+logs/
+
+# Data directory (if not needed in the image)
+data/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Env file
+.env
+
+# Docker specific
+Dockerfile
+docker-compose.yml
+.dockerignore 
