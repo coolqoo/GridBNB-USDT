@@ -109,6 +109,11 @@ class LogConfig:
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
 
+        # Set httpx logger level to WARNING to avoid logging sensitive info
+        httpx_logger = logging.getLogger("httpx")
+        httpx_logger.setLevel(logging.WARNING)
+        logging.info("Set httpx logger level to WARNING.")
+
     @staticmethod
     def clean_old_logs():
         if not os.path.exists(LogConfig.LOG_DIR):
